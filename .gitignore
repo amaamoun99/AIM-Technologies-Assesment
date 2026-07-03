@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# YouTube Data Pipeline
+data/raw/*
+!data/raw/.gitkeep
+diagrams/*.drawio
+

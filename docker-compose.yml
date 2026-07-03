@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: youtube_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pipeline}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pipeline}
+      POSTGRES_DB: ${POSTGRES_DB:-youtube}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: youtube_app
+    env_file:
+      - .env
+    volumes:
+      - ./data/raw:/app/data/raw
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./queries:/app/queries
+      - ./main.py:/app/main.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pg_data:
