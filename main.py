@@ -19,15 +19,86 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def run_analysis(db: Database):
-    """Placeholder for Phase 6 analysis queries."""
-    # We will implement query execution here in Phase 6.
-    # For now, let's print a placeholder message.
-    print("\n[Analysis mode enabled] Executing database reports...")
+def print_table(title: str, rows: list):
+    if not rows:
+        print(f"\n--- {title} ---")
+        print("No results returned.")
+        return
+
+    columns = list(rows[0].keys())
     
-    # We can load queries from queries/analysis.sql or run them directly.
-    # We'll fully implement this in Phase 6.
-    print("No queries executed yet (Phase 6 implementation pending).")
+    # Compute max width of each column
+    col_widths = {col: len(col) for col in columns}
+    for row in rows:
+        for col in columns:
+            val_str = str(row[col]) if row[col] is not None else "NULL"
+            if len(val_str) > col_widths[col]:
+                col_widths[col] = len(val_str)
+                
+    # Print table header
+    print(f"\n--- {title} ---")
+    header_border = "+" + "+".join("-" * (col_widths[col] + 2) for col in columns) + "+"
+    print(header_border)
+    header_row = "|" + "|".join(f" {col.ljust(col_widths[col])} " for col in columns) + "|"
+    print(header_row)
+    print(header_border)
+    
+    # Print data rows
+    for row in rows:
+        row_str = "|" + "|".join(
+            f" {str(row[col] if row[col] is not None else 'NULL').ljust(col_widths[col])} "
+            for col in columns
+        ) + "|"
+        print(row_str)
+    print(header_border)
+
+def run_analysis(db: Database):
+    """Execute analytical queries from queries/analysis.sql and output formatted tables."""
+    print("\n==============================================")
+    print("Executing Database Analytics Reports")
+    print("==============================================")
+    
+    sql_file_path = "/app/queries/analysis.sql"
+    if not os.path.exists(sql_file_path):
+        # Fallback for local run
+        sql_file_path = os.path.join(os.path.dirname(__file__), "queries", "analysis.sql")
+        
+    if not os.path.exists(sql_file_path):
+        logger.error(f"Analysis SQL file not found at: {sql_file_path}")
+        return
+
+    try:
+        with open(sql_file_path, "r", encoding="utf-8") as f:
+            sql_content = f.read()
+    except Exception as e:
+        logger.error(f"Failed to read analysis SQL file: {e}")
+        return
+
+    # Split queries by semicolon
+    raw_queries = sql_content.split(";")
+    query_index = 1
+
+    for raw_query in raw_queries:
+        query = raw_query.strip()
+        if not query:
+            continue
+
+        # Extract title from the query comments
+        lines = query.split("\n")
+        title = f"Report Query {query_index}"
+        for line in lines:
+            if line.strip().startswith("--"):
+                comment = line.strip().lstrip("-").strip()
+                if comment.lower().startswith("query"):
+                    title = comment
+                    break
+
+        try:
+            results = db.run_query(query)
+            print_table(title, results)
+            query_index += 1
+        except Exception as e:
+            logger.error(f"Failed to run analysis query: {title}. Error: {e}")
 
 def main():
     parser = argparse.ArgumentParser(description="YouTube Data Ingestion & Analysis Pipeline")

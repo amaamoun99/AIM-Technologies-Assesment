@@ -1,0 +1,34 @@
+flowchart TD
+    subgraph YouTubeAPI ["External Source"]
+        API["YouTube Data API v3"]
+    end
+
+    subgraph DockerCompose ["Docker Compose Boundary"]
+        subgraph AppService ["app container (running python main.py)"]
+            Client["src/api_client.py<br>(YouTubeAPIClient)"]
+            Pipeline["src/ingest.py<br>(IngestionPipeline)"]
+            Transformer["src/transform.py<br>(VideoTransformer)"]
+        end
+
+        subgraph PostgresService ["postgres container"]
+            DB["src/storage.py<br>(PostgreSQL Database)"]
+        end
+
+        subgraph VolumeMount ["Docker Volume / Host Bind Mount"]
+            RawFiles["data/raw/<br>(JSON landing zone)"]
+        end
+    end
+
+    subgraph UserInterface ["CLI & Analytics"]
+        CLI["main.py --analyze"]
+        Queries["queries/analysis.sql"]
+    end
+
+    API -->|1. Fetch JSON (Handles)| Client
+    Client -->|2. Raw items| Pipeline
+    Pipeline -->|3. Save raw JSON| RawFiles
+    Pipeline -->|4. Send raw data| Transformer
+    Transformer -->|5. Structured dataclasses| Pipeline
+    Pipeline -->|6. Load batch data| DB
+    CLI -->|7. Runs reports| DB
+    Queries -->|8. SQL Queries| CLI
