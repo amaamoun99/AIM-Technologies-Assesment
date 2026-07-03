@@ -68,18 +68,14 @@ def test_resolve_channel_id_by_handle(client):
         assert chan_id == "UC_TEST_CHANNEL"
         mock_req.assert_called_once_with("channels", {"part": "id", "forHandle": "Saba7oKorah"})
 
-def test_resolve_channel_id_by_search_fallback(client):
+def test_resolve_channel_id_failure(client):
     with patch.object(client, "_request") as mock_req:
-        # First call (handle) returns empty list or fails, second call (search) returns a match
-        mock_req.side_effect = [
-            {"items": []}, # channels query
-            {"items": [{"id": {"channelId": "UC_SEARCHED_CHANNEL"}}]} # search query
-        ]
+        mock_req.return_value = {"items": []}
         
-        chan_id = client.resolve_channel_id("@SomeChannel")
+        with pytest.raises(YouTubeAPIError):
+            client.resolve_channel_id("@InvalidChannel")
         
-        assert chan_id == "UC_SEARCHED_CHANNEL"
-        assert mock_req.call_count == 2
+        mock_req.assert_called_once_with("channels", {"part": "id", "forHandle": "InvalidChannel"})
 
 def test_search_channel_videos(client):
     with patch.object(client, "_request") as mock_req:

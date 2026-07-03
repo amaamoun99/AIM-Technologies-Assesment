@@ -66,34 +66,20 @@ class YouTubeAPIClient:
                     continue
                 raise YouTubeAPIError(f"Request failed after {self.max_retries} retries: {str(e)}") from e
 
-    def resolve_channel_id(self, handle_or_name: str) -> str:
-        """Resolve a channel handle (e.g. @Saba7oKorah) or name to its unique channel ID UC..."""
-        # Try direct resolution for handle if it starts with @ or seems like one
-        cleaned = handle_or_name.strip()
+    def resolve_channel_id(self, handle: str) -> str:
+        """Resolve a channel handle (e.g. @Saba7oKorah or Saba7oKorah) to its unique channel ID UC..."""
+        cleaned = handle.strip()
+        # Strip leading '@' if present
+        handle_name = cleaned[1:] if cleaned.startswith("@") else cleaned
         
-        if cleaned.startswith("@"):
-            handle = cleaned[1:]
-            try:
-                data = self._request("channels", {"part": "id", "forHandle": handle})
-                if data.get("items"):
-                    return data["items"][0]["id"]
-            except Exception as e:
-                logger.debug(f"Direct forHandle resolution failed for {handle_or_name}: {e}")
-
-        # Fallback: search for the channel name/handle
         try:
-            search_data = self._request("search", {
-                "part": "snippet",
-                "q": cleaned,
-                "type": "channel",
-                "maxResults": 1
-            })
-            if search_data.get("items"):
-                return search_data["items"][0]["id"]["channelId"]
+            data = self._request("channels", {"part": "id", "forHandle": handle_name})
+            if data.get("items"):
+                return data["items"][0]["id"]
         except Exception as e:
-            raise YouTubeAPIError(f"Could not resolve channel ID for '{handle_or_name}': {e}") from e
+            raise YouTubeAPIError(f"Failed to resolve channel handle '{handle}': {e}") from e
 
-        raise YouTubeAPIError(f"No channel found for '{handle_or_name}'")
+        raise YouTubeAPIError(f"No channel found for handle '{handle}'")
 
     def search_channel_videos(self, channel_id: str, max_results: int = 50) -> List[Dict[str, Any]]:
         """List videos of a channel using its uploads playlist (highly quota efficient)."""

@@ -25,12 +25,16 @@ class IngestionPipeline:
         logger.info(f"Starting ingestion for channel target: {channel_id_or_handle}")
         
         # 1. Resolve channel ID
-        try:
-            channel_id = self.api_client.resolve_channel_id(channel_id_or_handle)
-            logger.info(f"Resolved channel target '{channel_id_or_handle}' to ID: {channel_id}")
-        except Exception as e:
-            logger.error(f"Failed to resolve channel target '{channel_id_or_handle}': {e}")
-            raise
+        if isinstance(channel_id_or_handle, str) and channel_id_or_handle.startswith("UC") and len(channel_id_or_handle) == 24:
+            channel_id = channel_id_or_handle
+            logger.info(f"Using provided channel ID: {channel_id}")
+        else:
+            try:
+                channel_id = self.api_client.resolve_channel_id(channel_id_or_handle)
+                logger.info(f"Resolved channel target '{channel_id_or_handle}' to ID: {channel_id}")
+            except Exception as e:
+                logger.error(f"Failed to resolve channel target '{channel_id_or_handle}': {e}")
+                raise
 
         # 2. Fetch recent videos
         try:
