@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from src.api_client import YouTubeAPIClient
 from src.storage import Database
 from src.ingest import IngestionPipeline
-from src.config import RESOLVED_CHANNELS
+from src.config import CHANNELS, CACHE_FILE_PATH
 
 # Configure logging
 logging.basicConfig(
@@ -173,7 +173,7 @@ def main():
 
     # Initialize client and pipeline
     client = YouTubeAPIClient(api_key=api_key)
-    pipeline = IngestionPipeline(api_client=client, db=db)
+    pipeline = IngestionPipeline(api_client=client, db=db, cache_path=CACHE_FILE_PATH)
 
     # Tracking statistics
     totals = {
@@ -188,11 +188,11 @@ def main():
     print(f"Limits: {args.limit_videos} videos/channel, {args.limit_comments} comments/video")
     print("==============================================\n")
 
-    for channel_name, channel_id in RESOLVED_CHANNELS.items():
-        print(f"--- Channel: {channel_name} ({channel_id}) ---")
+    for channel_handle in CHANNELS:
+        print(f"--- Channel Target: {channel_handle} ---")
         try:
             summary = pipeline.run_for_channel(
-                channel_id_or_handle=channel_id,
+                channel_id_or_handle=channel_handle,
                 max_videos=args.limit_videos,
                 max_comments_per_video=args.limit_comments,
                 dry_run=args.dry_run
@@ -206,7 +206,7 @@ def main():
                 totals[k] += summary[k]
 
         except Exception as e:
-            logger.error(f"Failed to process channel {channel_name}: {e}")
+            logger.error(f"Failed to process channel {channel_handle}: {e}")
 
     print("==============================================")
     print("Run Summary:")

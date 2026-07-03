@@ -9,10 +9,11 @@ from src.storage import Database
 logger = logging.getLogger(__name__)
 
 class IngestionPipeline:
-    def __init__(self, api_client: YouTubeAPIClient, db: Database, raw_dir: str = "data/raw"):
+    def __init__(self, api_client: YouTubeAPIClient, db: Database, raw_dir: str = "data/raw", cache_path: str = "data/channel_cache.json"):
         self.api_client = api_client
         self.db = db
         self.raw_dir = raw_dir
+        self.cache_path = cache_path
 
     def run_for_channel(
         self,
@@ -29,12 +30,32 @@ class IngestionPipeline:
             channel_id = channel_id_or_handle
             logger.info(f"Using provided channel ID: {channel_id}")
         else:
-            try:
-                channel_id = self.api_client.resolve_channel_id(channel_id_or_handle)
-                logger.info(f"Resolved channel target '{channel_id_or_handle}' to ID: {channel_id}")
-            except Exception as e:
-                logger.error(f"Failed to resolve channel target '{channel_id_or_handle}': {e}")
-                raise
+            # Check local file-based cache
+            cache = {}
+            if os.path.exists(self.cache_path):
+                try:
+                    with open(self.cache_path, "r", encoding="utf-8") as f:
+                        cache = json.load(f)
+                except Exception as e:
+                    logger.warning(f"Failed to read channel cache file: {e}")
+
+            if channel_id_or_handle in cache:
+                channel_id = cache[channel_id_or_handle]
+                logger.info(f"Resolved channel target '{channel_id_or_handle}' from cache to: {channel_id}")
+            else:
+                try:
+                    channel_id = self.api_client.resolve_channel_id(channel_id_or_handle)
+                    logger.info(f"Resolved channel target '{channel_id_or_handle}' via API to ID: {channel_id}")
+                    
+                    # Update cache
+                    cache[channel_id_or_handle] = channel_id
+                    os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
+                    with open(self.cache_path, "w", encoding="utf-8") as f:
+                        json.dump(cache, f, ensure_ascii=False, indent=2)
+                    logger.info(f"Cached resolved ID mapping: '{channel_id_or_handle}' -> '{channel_id}'")
+                except Exception as e:
+                    logger.error(f"Failed to resolve channel target '{channel_id_or_handle}': {e}")
+                    raise
 
         # 2. Fetch recent videos
         try:

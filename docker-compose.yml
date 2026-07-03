@@ -22,7 +22,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./data/raw:/app/data/raw
+      - ./data:/app/data
       - ./src:/app/src
       - ./tests:/app/tests
       - ./queries:/app/queries

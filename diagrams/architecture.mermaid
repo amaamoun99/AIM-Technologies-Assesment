@@ -16,6 +16,7 @@ flowchart TD
 
         subgraph VolumeMount ["Docker Volume / Host Bind Mount"]
             RawFiles["data/raw/<br>(JSON landing zone)"]
+            CacheFile["data/channel_cache.json<br>(Handles Cache)"]
         end
     end
 
@@ -24,11 +25,18 @@ flowchart TD
         Queries["queries/analysis.sql"]
     end
 
-    API -->|1. Fetch JSON (Handles)| Client
-    Client -->|2. Raw items| Pipeline
-    Pipeline -->|3. Save raw JSON| RawFiles
-    Pipeline -->|4. Send raw data| Transformer
-    Transformer -->|5. Structured dataclasses| Pipeline
-    Pipeline -->|6. Load batch data| DB
-    CLI -->|7. Runs reports| DB
-    Queries -->|8. SQL Queries| CLI
+    Pipeline -->|1. Check Cache| CacheFile
+    CacheFile -->|2. Hit: Use Cached ID| Pipeline
+    Pipeline -->|2. Miss: Request API ID| Client
+    Client -->|3. Query Handles| API
+    API -->|4. Return UC ID| Client
+    Client -->|5. Save to Cache| CacheFile
+    
+    API -->|6. Fetch Videos/Comments| Client
+    Client -->|7. Raw JSON| Pipeline
+    Pipeline -->|8. Save raw JSON| RawFiles
+    Pipeline -->|9. Send raw data| Transformer
+    Transformer -->|10. Dataclasses| Pipeline
+    Pipeline -->|11. Load Batch| DB
+    CLI -->|12. Runs reports| DB
+    Queries -->|13. SQL Queries| CLI

@@ -70,7 +70,12 @@ def test_ingest_run_for_channel(temp_raw_dir):
         [] # no comments for video 2
     ]
 
-    pipeline = IngestionPipeline(api_client=mock_api_client, db=mock_db, raw_dir=temp_raw_dir)
+    pipeline = IngestionPipeline(
+        api_client=mock_api_client,
+        db=mock_db,
+        raw_dir=temp_raw_dir,
+        cache_path=os.path.join(temp_raw_dir, "cache.json")
+    )
     
     # Run the pipeline
     summary = pipeline.run_for_channel("@MockChannel", max_videos=2, max_comments_per_video=5, dry_run=False)

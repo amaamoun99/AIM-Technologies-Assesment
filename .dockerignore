@@ -1,0 +1,29 @@
+# Ignore git files
+.git
+.gitignore
+
+# Ignore local data directory (since it is mounted via docker-compose volumes)
+data/
+
+# Ignore documentation & design files
+*.md
+diagrams/
+plan.md
+
+# Ignore testing directory and caches (not needed for production runtime)
+tests/
+.pytest_cache/
+.pytest/
+
+# Ignore python compile caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore local environment credentials
+.env
+.envrc
+.venv/
+venv/
+env/

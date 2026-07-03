@@ -24,6 +24,9 @@ def test_create_schema_and_inserts(db):
     db.create_schema()
 
     # Clear tables to ensure clean state
+    if db.dbname == "youtube" and os.getenv("ALLOW_TEST_TRUNCATE") != "1":
+        pytest.fail("Safety Block: Attempting to truncate production database 'youtube' during unit tests. Set environment variable ALLOW_TEST_TRUNCATE=1 to bypass.")
+
     with db.conn.cursor() as cur:
         cur.execute("TRUNCATE TABLE comments, videos CASCADE;")
     db.conn.commit()
