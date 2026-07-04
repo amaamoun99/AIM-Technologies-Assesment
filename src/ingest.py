@@ -15,15 +15,14 @@ class IngestionPipeline:
         self.raw_dir = raw_dir
         self.cache_path = cache_path
 
-    def run_for_channel(
+    def youtube_to_staging(
         self,
         channel_id_or_handle: str,
         max_videos: int = 10,
-        max_comments_per_video: int = 10,
-        dry_run: bool = False
+        max_comments_per_video: int = 10
     ) -> Dict[str, int]:
-        """Orchestrate the ingestion for a single channel handle or ID."""
-        logger.info(f"Starting ingestion for channel target: {channel_id_or_handle}")
+        """Task 1: Extract from YouTube API and save raw JSON to staging layer."""
+        logger.info(f"[Task: youtube_to_staging] Extracting for channel target: {channel_id_or_handle}")
         
         # 1. Resolve channel ID
         if isinstance(channel_id_or_handle, str) and channel_id_or_handle.startswith("UC") and len(channel_id_or_handle) == 24:
@@ -67,7 +66,7 @@ class IngestionPipeline:
             raise
 
         if not video_ids:
-            return {"videos_fetched": 0, "comments_fetched": 0, "videos_loaded": 0, "comments_loaded": 0}
+            return {"videos_staged": 0, "comments_staged": 0}
 
         # 3. Fetch full details for the videos
         try:
@@ -77,14 +76,12 @@ class IngestionPipeline:
             logger.error(f"Failed to get video details for channel {channel_id}: {e}")
             raise
 
-        # Ensure landing directory for the channel exists
+        # Ensure staging directory for the channel exists
         channel_raw_dir = os.path.join(self.raw_dir, channel_id)
         os.makedirs(channel_raw_dir, exist_ok=True)
 
-        videos_fetched_count = 0
-        comments_fetched_count = 0
-        videos_loaded_count = 0
-        comments_loaded_count = 0
+        videos_staged_count = 0
+        comments_staged_count = 0
 
         # Process each video
         for video_item in raw_videos:
@@ -92,19 +89,19 @@ class IngestionPipeline:
             if not video_id:
                 continue
 
-            videos_fetched_count += 1
-            logger.info(f"Processing video {video_id}")
+            videos_staged_count += 1
+            logger.info(f"Staging video {video_id}")
 
             # 4. Fetch comments for this video
             try:
                 raw_comments = self.api_client.get_comments(video_id, max_results=max_comments_per_video)
-                comments_fetched_count += len(raw_comments)
+                comments_staged_count += len(raw_comments)
                 logger.info(f"Fetched {len(raw_comments)} comments for video {video_id}")
             except Exception as e:
                 logger.warning(f"Failed to fetch comments for video {video_id}, continuing: {e}")
                 raw_comments = []
 
-            # 5. Write raw JSON to landing zone
+            # 5. Write raw JSON to staging folder
             raw_data = {
                 "video": video_item,
                 "comments": raw_comments
@@ -117,27 +114,76 @@ class IngestionPipeline:
             except Exception as e:
                 logger.error(f"Failed to save raw JSON for video {video_id}: {e}")
 
-            # 6. Transform raw items
-            videos = VideoTransformer.transform_videos([video_item])
-            comments = VideoTransformer.transform_comments(video_id, raw_comments)
+        return {
+            "videos_staged": videos_staged_count,
+            "comments_staged": comments_staged_count
+        }
 
-            # 7. Load into Database
-            if videos and not dry_run:
+    def staging_to_postgres(self) -> Dict[str, int]:
+        """Task 2: Read raw JSON files from staging layer, transform, and load to PostgreSQL DB."""
+        logger.info("[Task: staging_to_postgres] Starting transformation and load to database...")
+        
+        all_videos = []
+        all_comments = []
+        files_processed = 0
+
+        if not os.path.exists(self.raw_dir):
+            logger.warning(f"Staging directory {self.raw_dir} does not exist.")
+            return {"videos_loaded": 0, "comments_loaded": 0}
+
+        # Scan for all JSON files in the raw staging folder
+        for root, _, files in os.walk(self.raw_dir):
+            for file in files:
+                if not file.endswith(".json"):
+                    continue
+                
+                file_path = os.path.join(root, file)
                 try:
-                    self.db.insert_videos(videos)
-                    videos_loaded_count += len(videos)
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        raw_data = json.load(f)
                     
-                    if comments:
-                        self.db.insert_comments(comments)
-                        comments_loaded_count += len(comments)
+                    raw_video = raw_data.get("video")
+                    raw_comments = raw_data.get("comments", [])
+                    
+                    if not raw_video:
+                        logger.warning(f"Staging file {file_path} is missing video details.")
+                        continue
+                    
+                    # 1. Transform raw elements
+                    video_id = raw_video.get("id")
+                    transformed_videos = VideoTransformer.transform_videos([raw_video])
+                    transformed_comments = VideoTransformer.transform_comments(video_id, raw_comments)
+                    
+                    all_videos.extend(transformed_videos)
+                    all_comments.extend(transformed_comments)
+                    files_processed += 1
                 except Exception as e:
-                    logger.error(f"Failed to load data for video {video_id} into database: {e}")
-            elif dry_run:
-                logger.info(f"Dry run mode: skipped loading {len(videos)} videos and {len(comments)} comments to DB")
+                    logger.error(f"Failed to process staging file {file_path}: {e}")
+
+        logger.info(f"Processed {files_processed} staging files. Found {len(all_videos)} videos and {len(all_comments)} comments.")
+
+        videos_loaded_count = 0
+        comments_loaded_count = 0
+
+        # 2. Bulk load videos into Postgres database
+        if all_videos:
+            try:
+                self.db.insert_videos(all_videos)
+                videos_loaded_count = len(all_videos)
+            except Exception as e:
+                logger.error(f"Database insertion failed for videos batch: {e}")
+                raise
+
+        # 3. Bulk load comments into Postgres database
+        if all_comments:
+            try:
+                self.db.insert_comments(all_comments)
+                comments_loaded_count = len(all_comments)
+            except Exception as e:
+                logger.error(f"Database insertion failed for comments batch: {e}")
+                raise
 
         return {
-            "videos_fetched": videos_fetched_count,
-            "comments_fetched": comments_fetched_count,
             "videos_loaded": videos_loaded_count,
             "comments_loaded": comments_loaded_count
         }

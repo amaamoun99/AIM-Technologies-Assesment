@@ -12,7 +12,7 @@ def temp_raw_dir(tmp_path):
     yield str(d)
     shutil.rmtree(d, ignore_errors=True)
 
-def test_ingest_run_for_channel(temp_raw_dir):
+def test_ingest_decoupled_flow(temp_raw_dir):
     # Mock dependencies
     mock_api_client = MagicMock()
     mock_db = MagicMock()
@@ -77,16 +77,14 @@ def test_ingest_run_for_channel(temp_raw_dir):
         cache_path=os.path.join(temp_raw_dir, "cache.json")
     )
     
-    # Run the pipeline
-    summary = pipeline.run_for_channel("@MockChannel", max_videos=2, max_comments_per_video=5, dry_run=False)
+    # Run Task 1: youtube_to_staging (Extract)
+    staged_summary = pipeline.youtube_to_staging("@MockChannel", max_videos=2, max_comments_per_video=5)
 
-    # Assertions
-    assert summary["videos_fetched"] == 2
-    assert summary["comments_fetched"] == 1
-    assert summary["videos_loaded"] == 2
-    assert summary["comments_loaded"] == 1
+    # Assertions for Task 1
+    assert staged_summary["videos_staged"] == 2
+    assert staged_summary["comments_staged"] == 1
 
-    # Verify calls
+    # Verify API calls
     mock_api_client.resolve_channel_id.assert_called_once_with("@MockChannel")
     mock_api_client.search_channel_videos.assert_called_once_with("UC_MOCK_CHANNEL", max_results=2)
     mock_api_client.get_video_details.assert_called_once_with(["vid_1", "vid_2"])
@@ -96,11 +94,7 @@ def test_ingest_run_for_channel(temp_raw_dir):
     mock_api_client.get_comments.assert_any_call("vid_1", max_results=5)
     mock_api_client.get_comments.assert_any_call("vid_2", max_results=5)
 
-    # Verify DB insertions
-    assert mock_db.insert_videos.call_count == 2
-    assert mock_db.insert_comments.call_count == 1
-
-    # Verify raw files are written
+    # Verify raw files are written on disk in staging layer
     channel_dir = os.path.join(temp_raw_dir, "UC_MOCK_CHANNEL")
     assert os.path.exists(channel_dir)
     
@@ -116,7 +110,17 @@ def test_ingest_run_for_channel(temp_raw_dir):
         assert len(data["comments"]) == 1
         assert data["comments"][0]["id"] == "c_1"
 
-    with open(file2, "r", encoding="utf-8") as f:
-        data = json.load(f)
-        assert data["video"]["id"] == "vid_2"
-        assert len(data["comments"]) == 0
+    # Verify DB has NOT been called during extraction task
+    assert mock_db.insert_videos.call_count == 0
+    assert mock_db.insert_comments.call_count == 0
+
+    # Run Task 2: staging_to_postgres (Load & Transform)
+    loaded_summary = pipeline.staging_to_postgres()
+
+    # Assertions for Task 2
+    assert loaded_summary["videos_loaded"] == 2
+    assert loaded_summary["comments_loaded"] == 1
+
+    # Verify DB insertions occurred
+    assert mock_db.insert_videos.call_count == 1
+    assert mock_db.insert_comments.call_count == 1

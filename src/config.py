@@ -1,5 +1,5 @@
-# Channel handles configuration
-# To add a channel, simply append its @handle to this list.
+# Channel handles 
+
 CHANNELS = [
     "@AJpluskibreet",
     "@Saba7oKorah",
