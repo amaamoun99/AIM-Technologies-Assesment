@@ -3,9 +3,3 @@ psycopg2-binary==2.9.9
 python-dotenv==1.0.1
 pytest==8.0.0
 
-
-
-
-https://mc.alsaudinews.com/news-now/171618/
-docker compose up --build -d
-docker compose run --rm app python main.py

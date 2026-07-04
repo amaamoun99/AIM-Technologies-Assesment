@@ -1,3 +1,4 @@
+import re
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -10,14 +11,42 @@ def parse_iso_datetime(dt_str: Optional[str]) -> Optional[datetime]:
     if not dt_str:
         return None
     try:
-        # Replace Z with +00:00 for ISO compliance in standard library if needed
-        # but Python 3.11's fromisoformat handles 'Z' out of the box.
-        # Just in case, let's normalize 'Z' to '+00:00' for backward compatibility.
         normalized = dt_str.replace("Z", "+00:00")
         return datetime.fromisoformat(normalized)
     except Exception as e:
         logger.warning(f"Failed to parse datetime string '{dt_str}': {e}")
         return None
+
+def parse_iso_duration(duration_str: Optional[str]) -> Optional[str]:
+    """
+    Parse ISO 8601 duration string (e.g. 'PT1H23M45S') to readable format (e.g. '1h 23m 45s').
+    """
+    if not duration_str:
+        return None
+    
+    # Match days, hours, minutes, seconds components
+    pattern = re.compile(r'P(?:(?P<days>\d+)D)?T?(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?')
+    match = pattern.match(duration_str)
+    if not match:
+        return duration_str  # Fallback to raw if match fails
+        
+    parts = match.groupdict()
+    days = int(parts.get("days") or 0)
+    hours = int(parts.get("hours") or 0)
+    minutes = int(parts.get("minutes") or 0)
+    seconds = int(parts.get("seconds") or 0)
+    
+    formatted_parts = []
+    if days > 0:
+        formatted_parts.append(f"{days}d")
+    if hours > 0:
+        formatted_parts.append(f"{hours}h")
+    if minutes > 0:
+        formatted_parts.append(f"{minutes}m")
+    if seconds > 0 or not formatted_parts:
+        formatted_parts.append(f"{seconds}s")
+        
+    return " ".join(formatted_parts)
 
 class VideoTransformer:
     @staticmethod
@@ -56,7 +85,7 @@ class VideoTransformer:
                     view_count=view_count,
                     like_count=like_count,
                     comment_count=comment_count,
-                    duration=content_details.get("duration"),
+                    duration=parse_iso_duration(content_details.get("duration")),
                     fetched_at=datetime.now(timezone.utc)
                 )
                 videos.append(video)

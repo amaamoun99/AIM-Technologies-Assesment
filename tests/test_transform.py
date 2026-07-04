@@ -35,7 +35,7 @@ def test_transform_videos_happy_path():
     assert v.view_count == 15000
     assert v.like_count == 450
     assert v.comment_count == 32
-    assert v.duration == "PT10M15S"
+    assert v.duration == "10m 15s"
     assert v.fetched_at is not None
 
 def test_transform_videos_missing_optional_fields():
