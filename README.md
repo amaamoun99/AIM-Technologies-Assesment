@@ -8,7 +8,7 @@ A Docker-native, production-ready, quota-efficient data pipeline written in Pyth
 
 The system architecture is summarized in the diagram below:
 
-![Architecture Diagram](diagrams/architecture.png)
+![Architecture Diagram](diagrams/ELT%20Pipeline.jpg)
 
 Read our detailed architectural reasoning, database decisions, and scaling thoughts in the [Design Notes](design_notes.md).
 
@@ -76,8 +76,8 @@ docker compose run --rm app python main.py
 ```
 
 This executes two decoupled tasks matching Airflow DAG design patterns:
-1. **Task 1: `youtube_to_staging`:** Connects to the YouTube Data API, resolves channel handles (using the cache), and saves raw JSON payloads to `data/raw/{channel_id}/{video_id}.json`.
-2. **Task 2: `staging_to_postgres`:** Reads the JSON files from the staging folder (`data/raw/`), parses/transforms them, and bulk upserts the dataclasses into PostgreSQL.
+1. **Task 1: `youtube_to_staging`:** Connects to the YouTube Data API, resolves channel handles (using the cache), and extracts raw JSON payloads to the **landing layer** (`data/raw/{channel_id}/{video_id}.json`).
+2. **Task 2: `staging_to_postgres`:** Reads the JSON files from the landing layer, transforms them into structured data, and loads/bulk-upserts them to the **PostgreSQL staging layer**.
 
 **Options & Limits:**
 * `--limit-videos N`: Max videos to pull per channel (default: `10`, pulls `50` total).

@@ -13,7 +13,7 @@ To maintain clean, maintainable, and testable code, we followed the Single Respo
 | `YouTubeAPIClient` | `src/api_client.py` | **Data Fetching (API Gateway):** Exposes clean methods for querying YouTube's API (channels, playlists, details, comments). Implements connection retry, timeout handling, rate limit backoffs, and error checking. Banned from performing filesystem or database interactions. |
 | `VideoTransformer` | `src/transform.py` | **Data Transformation (CPU-bound):** Standardizes raw API JSON arrays into strongly-typed `Video` and `Comment` dataclasses. Implements defensive defaults (e.g. converting missing counts to 0, parsing ISO datetimes, checking disabled comment threads). Banned from making API or DB calls. |
 | `Database` | `src/storage.py` | **Data Persistence (Repository):** Manages PostgreSQL connections, transactions, and applies schema definitions. Performs high-performance batch updates via `execute_batch` and resolves conflicts gracefully via SQL `UPSERT` (`ON CONFLICT DO UPDATE`). Banned from API/business logic. |
-| `IngestionPipeline` | `src/ingest.py` | **Orchestrator (ELT Tasks):** Exposes two decoupled orchestration tasks matching Airflow DAG designs: `youtube_to_staging` (queries API and writes raw JSON files to staging) and `staging_to_postgres` (reads staged files, transforms them, and bulk upserts them to Postgres). |
+| `IngestionPipeline` | `src/ingest.py` | **Orchestrator (ELT Tasks):** Exposes two decoupled orchestration tasks matching Airflow DAG designs: `youtube_to_staging` (queries API and writes raw JSON files to the landing layer) and `staging_to_postgres` (reads landed files, transforms them, and bulk upserts them to the PostgreSQL staging layer). |
 | `main.py` | `main.py` | **Entry Point:** Handles environment bootstrapping, command-line argument parsing, logging setup, and sequentially fires the pipeline tasks (`youtube_to_staging` followed by `staging_to_postgres`). |
 
 ---
@@ -78,13 +78,13 @@ To align with standard data engineering practices and ensure high robustness, th
 
 1. **`youtube_to_staging` (Extract Task):**
    - Connects to the YouTube Data API and fetches channel details, videos, and comments.
-   - Saves raw JSON payloads directly into `data/raw/{channel_id}/{video_id}.json`.
+   - Saves raw JSON payloads directly into the **landing layer** (`data/raw/{channel_id}/{video_id}.json`).
    - **DB Offline Resiliency:** This task has zero connection to the database. If PostgreSQL is temporarily offline, raw ingestion still succeeds, preventing redundant API calls.
 2. **`staging_to_postgres` (Load & Transform Task):**
-   - Reads files on disk from the local staging directory `data/raw/`.
+   - Reads files on disk from the **landing layer** (`data/raw/`).
    - Transforms JSON payloads into strongly-typed dataclasses using `VideoTransformer`.
-   - Loads them into PostgreSQL in high-performance upsert bulk batches.
-   - **API Offline Resiliency:** This task makes zero API calls. If PostgreSQL was offline or schema migrations failed, this task can be run independently to load data from the staging files without burning YouTube API quota.
+   - Loads and bulk-upserts them to the **PostgreSQL staging layer**.
+   - **API Offline Resiliency:** This task makes zero API calls. If PostgreSQL was offline or schema migrations failed, this task can be run independently to load data from the landing files without burning YouTube API quota.
 
 ---
 
@@ -99,7 +99,7 @@ We split the pipeline into clear, modular components complying with the **Single
 3. **`Database`** manages schemas, connections, and high-performance transactional upserts.
 4. **`IngestionPipeline`** acts as the orchestrator.
 
-To follow best practices for staging/ELT data layers, we separated the orchestration flow into two decoupled Airflow-style tasks: `youtube_to_staging` (extracting and dumping raw JSON files to disk) and `staging_to_postgres` (reading, transforming, and batch loading). This prevents code coupling and enables reprocessing raw files without querying external APIs.
+To follow best practices for staging/ELT data layers, we separated the orchestration flow into two decoupled Airflow-style tasks: `youtube_to_staging` (extracting and dumping raw JSON files to the **landing layer**) and `staging_to_postgres` (reading, transforming, and batch loading to the **PostgreSQL staging layer**). This prevents code coupling and enables reprocessing raw files without querying external APIs.
 
 ### Q2 — What would break at scale (50,000+ videos)?
 Scaling the pipeline from 50 to 50,000+ videos exposes several key bottlenecks:
