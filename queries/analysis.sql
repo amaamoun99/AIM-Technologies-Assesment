@@ -1,5 +1,5 @@
 -- Query 1: Top 10 videos by view count
--- NAME: top_videos_by_views
+
 SELECT 
     video_id, 
     channel_name, 
@@ -10,8 +10,8 @@ FROM videos
 ORDER BY view_count DESC 
 LIMIT 10;
 
--- Query 2: Average comments per video, grouped by channel
--- NAME: avg_comments_per_channel
+--  Average comments per video, grouped by channel
+
 SELECT 
     channel_name, 
     ROUND(AVG(comment_count), 2) as avg_comments
@@ -19,8 +19,8 @@ FROM videos
 GROUP BY channel_name 
 ORDER BY avg_comments DESC;
 
--- Query 3: Top 10 most active commenters (by comment count)
--- NAME: top_active_commenters
+-- Top 10 most active commenters 
+
 SELECT 
     author, 
     COUNT(*) as comment_count 
@@ -29,8 +29,8 @@ GROUP BY author
 ORDER BY comment_count DESC 
 LIMIT 10;
 
--- Query 4: Engagement rate per channel, ranked (Option A: Sum-Ratio)
--- NAME: channel_engagement_rate
+-- Engagement rate per channel
+
 SELECT 
     channel_name,
     SUM(like_count) as total_likes,
