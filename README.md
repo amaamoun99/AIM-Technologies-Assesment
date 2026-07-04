@@ -76,8 +76,8 @@ docker compose run --rm app python main.py
 ```
 
 This executes two decoupled tasks matching Airflow DAG design patterns:
-1. **Task 1: `youtube_to_staging`:** Connects to the YouTube Data API, resolves channel handles (using the cache), and extracts raw JSON payloads to the **landing layer** (`data/raw/{channel_id}/{video_id}.json`).
-2. **Task 2: `staging_to_postgres`:** Reads the JSON files from the landing layer, transforms them into structured data, and loads/bulk-upserts them to the **PostgreSQL staging layer**.
+1. **Task 1: `youtube_to_landing`:** Connects to the YouTube Data API, resolves channel handles (using the cache), and extracts raw JSON payloads to the **landing layer** (`data/raw/{channel_id}/{video_id}.json`).
+2. **Task 2: `landing_to_postgres`:** Reads the JSON files from the landing layer, transforms them into structured data, and loads/bulk-upserts them to the **PostgreSQL staging layer**.
 
 **Options & Limits:**
 * `--limit-videos N`: Max videos to pull per channel (default: `10`, pulls `50` total).

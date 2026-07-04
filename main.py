@@ -189,57 +189,57 @@ def main():
     client = YouTubeAPIClient(api_key=api_key)
     pipeline = IngestionPipeline(api_client=client, db=db, cache_path=CACHE_FILE_PATH)
 
-    # Tracking statistics for staging task
-    staging_totals = {
-        "videos_staged": 0,
-        "comments_staged": 0
+    # Tracking statistics for landing task
+    landing_totals = {
+        "videos_landed": 0,
+        "comments_landed": 0
     }
 
     print("\n==============================================")
-    print(f"Task 1: youtube_to_staging (Extraction Phase)")
+    print(f"Task 1: youtube_to_landing (Extraction Phase)")
     print(f"Limits: {args.limit_videos} videos/channel, {args.limit_comments} comments/video")
     print("==============================================\n")
 
     for channel_handle in CHANNELS:
-        print(f"--- Staging Channel: {channel_handle} ---")
+        print(f"--- Landing Channel: {channel_handle} ---")
         try:
-            summary = pipeline.youtube_to_staging(
+            summary = pipeline.youtube_to_landing(
                 channel_id_or_handle=channel_handle,
                 max_videos=args.limit_videos,
                 max_comments_per_video=args.limit_comments
             )
-            print(f"  Videos Staged: {summary['videos_staged']}")
-            print(f"  Comments Staged: {summary['comments_staged']}\n")
+            print(f"  Videos Landed: {summary['videos_staged']}")
+            print(f"  Comments Landed: {summary['comments_staged']}\n")
 
-            staging_totals["videos_staged"] += summary["videos_staged"]
-            staging_totals["comments_staged"] += summary["comments_staged"]
+            landing_totals["videos_landed"] += summary["videos_staged"]
+            landing_totals["comments_landed"] += summary["comments_staged"]
 
         except Exception as e:
-            logger.error(f"Failed to stage channel {channel_handle}: {e}")
+            logger.error(f"Failed to land channel {channel_handle}: {e}")
 
     print("==============================================")
-    print("Staging Extraction Summary:")
-    print(f"  Total Videos Staged: {staging_totals['videos_staged']}")
-    print(f"  Total Comments Staged: {staging_totals['comments_staged']}")
+    print("Landing Extraction Summary:")
+    print(f"  Total Videos Landed: {landing_totals['videos_landed']}")
+    print(f"  Total Comments Landed: {landing_totals['comments_landed']}")
     print("==============================================\n")
 
-    # Task 2: staging_to_postgres (Transformation & Loading Phase)
+    # Task 2: landing_to_postgres (Transformation & Loading Phase)
     db_totals = {
         "videos_loaded": 0,
         "comments_loaded": 0
     }
 
     print("==============================================")
-    print("Task 2: staging_to_postgres (Loading Phase)")
+    print("Task 2: landing_to_postgres (Loading Phase)")
     print("==============================================\n")
     try:
-        db_summary = pipeline.staging_to_postgres()
+        db_summary = pipeline.landing_to_postgres()
         print(f"  Videos Loaded to Postgres DB: {db_summary['videos_loaded']}")
         print(f"  Comments Loaded to Postgres DB: {db_summary['comments_loaded']}\n")
         db_totals["videos_loaded"] = db_summary["videos_loaded"]
         db_totals["comments_loaded"] = db_summary["comments_loaded"]
     except Exception as e:
-        logger.error(f"Failed to load staging data to PostgreSQL: {e}")
+        logger.error(f"Failed to load landing data to PostgreSQL: {e}")
 
     db.close()
 

@@ -77,8 +77,8 @@ def test_ingest_decoupled_flow(temp_raw_dir):
         cache_path=os.path.join(temp_raw_dir, "cache.json")
     )
     
-    # Run Task 1: youtube_to_staging (Extract)
-    staged_summary = pipeline.youtube_to_staging("@MockChannel", max_videos=2, max_comments_per_video=5)
+    # Run Task 1: youtube_to_landing (Extract)
+    staged_summary = pipeline.youtube_to_landing("@MockChannel", max_videos=2, max_comments_per_video=5)
 
     # Assertions for Task 1
     assert staged_summary["videos_staged"] == 2
@@ -114,8 +114,8 @@ def test_ingest_decoupled_flow(temp_raw_dir):
     assert mock_db.insert_videos.call_count == 0
     assert mock_db.insert_comments.call_count == 0
 
-    # Run Task 2: staging_to_postgres (Load & Transform)
-    loaded_summary = pipeline.staging_to_postgres()
+    # Run Task 2: landing_to_postgres (Load & Transform)
+    loaded_summary = pipeline.landing_to_postgres()
 
     # Assertions for Task 2
     assert loaded_summary["videos_loaded"] == 2

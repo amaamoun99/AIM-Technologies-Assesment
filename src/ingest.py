@@ -15,14 +15,14 @@ class IngestionPipeline:
         self.raw_dir = raw_dir
         self.cache_path = cache_path
 
-    def youtube_to_staging(
+    def youtube_to_landing(
         self,
         channel_id_or_handle: str,
         max_videos: int = 10,
         max_comments_per_video: int = 10
     ) -> Dict[str, int]:
-        """Task 1: Extract from YouTube API and save raw JSON to staging layer."""
-        logger.info(f"[Task: youtube_to_staging] Extracting for channel target: {channel_id_or_handle}")
+        """Task 1: Extract from YouTube API and save raw JSON to landing layer."""
+        logger.info(f"[Task: youtube_to_landing] Extracting for channel target: {channel_id_or_handle}")
         
         # 1. Resolve channel ID
         if isinstance(channel_id_or_handle, str) and channel_id_or_handle.startswith("UC") and len(channel_id_or_handle) == 24:
@@ -119,9 +119,9 @@ class IngestionPipeline:
             "comments_staged": comments_staged_count
         }
 
-    def staging_to_postgres(self) -> Dict[str, int]:
-        """Task 2: Read raw JSON files from staging layer, transform, and load to PostgreSQL DB."""
-        logger.info("[Task: staging_to_postgres] Starting transformation and load to database...")
+    def landing_to_postgres(self) -> Dict[str, int]:
+        """Task 2: Read raw JSON files from landing layer, transform, and load to PostgreSQL DB."""
+        logger.info("[Task: landing_to_postgres] Starting transformation and load to database...")
         
         all_videos = []
         all_comments = []
