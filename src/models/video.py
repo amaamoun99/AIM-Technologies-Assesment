@@ -15,12 +15,3 @@ class Video:
     comment_count: int
     duration: Optional[str]
     fetched_at: Optional[datetime] = None
-
-@dataclass
-class Comment:
-    comment_id: str
-    video_id: str
-    author: str
-    text: Optional[str]
-    like_count: int
-    published_at: datetime
