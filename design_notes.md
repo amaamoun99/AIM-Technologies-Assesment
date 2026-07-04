@@ -26,6 +26,7 @@ We chose **PostgreSQL** in a dockerized container as the primary data store over
 ### Why PostgreSQL over MongoDB (NoSQL)?
 * **Relational Integrity:** The connection between `videos` and `comments` is strictly 1-to-many. Relational keys with `FOREIGN KEY` constraints and `ON DELETE CASCADE` prevent orphaned comments, maintaining absolute referential integrity.
 * **Structured Analytics:** Analytical aggregations (e.g. calculating engagement percentages or commenter counts) are much simpler, highly optimized, and faster in SQL than in Mongo's Aggregation Framework.
+* **Horizontal Scaling Limitations on Relational Data:** While MongoDB is designed to scale horizontally across clusters using document collections, highly relational datasets (like videos and comments) do not scale horizontally well in a NoSQL document model. If comment documents are distributed across different nodes in a cluster, running aggregates and lookups (like joining video and comment collections) to calculate video or channel engagement metrics becomes a massive performance bottleneck. PostgreSQL handles these structured relations and aggregations natively and efficiently.
 
 ---
 
