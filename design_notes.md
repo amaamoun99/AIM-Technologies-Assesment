@@ -22,10 +22,6 @@ To maintain clean, maintainable, and testable code, we followed the Single Respo
 
 We chose **PostgreSQL** in a dockerized container as the primary data store over alternatives like SQLite or MongoDB:
 
-### Why PostgreSQL over SQLite?
-* **Concurrent Writing:** SQLite locks the entire database file during writes, making it prone to "database is locked" errors under parallel runs or heavy batch writing. Postgres supports fine-grained row-level locking, enabling highly concurrent reads/writes.
-* **Production Parity:** PostgreSQL is the industry standard for production-grade transactional pipelines. Using it dockerized ensures that local development matches cloud execution patterns.
-* **Rich Datatypes & Indexing:** Postgres supports robust timezone-aware timestamps (`TIMESTAMPTZ`) and flexible text search fields which are ideal for comment storage.
 
 ### Why PostgreSQL over MongoDB (NoSQL)?
 * **Relational Integrity:** The connection between `videos` and `comments` is strictly 1-to-many. Relational keys with `FOREIGN KEY` constraints and `ON DELETE CASCADE` prevent orphaned comments, maintaining absolute referential integrity.
